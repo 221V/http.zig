@@ -69,8 +69,9 @@ pub fn build(b: *std.Build) !void {
         .{ .file = "examples_http/05_request_takeover.zig", .name = "example_5" },
         .{ .file = "examples_http/06_middleware.zig", .name = "example_6" },
         .{ .file = "examples_http/07_advanced_routing.zig", .name = "example_7" },
-        .{ .file = "examples_http/08_websocket.zig", .name = "example_8" },
         .{ .file = "examples_http/09_shutdown.zig", .name = "example_9", .libc = true },
+        
+        .{ .file = "examples_ws/01_websocket.zig", .name = "example_ws_1" },
     };
 
     {
