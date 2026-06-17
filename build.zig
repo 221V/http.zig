@@ -2,7 +2,8 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
+    //const optimize = b.standardOptimizeOption(.{}); // -O Debug
+    const optimize = std.builtin.OptimizeMode.ReleaseFast; // -O ReleaseFast
 
     const dep_opts = .{ .target = target, .optimize = optimize };
     const metrics_module = b.dependency("metrics", dep_opts).module("metrics");
@@ -61,15 +62,15 @@ pub fn build(b: *std.Build) !void {
         name: []const u8,
         libc: bool = false,
     }{
-        .{ .file = "examples/01_basic.zig", .name = "example_1" },
-        .{ .file = "examples/02_handler.zig", .name = "example_2" },
-        .{ .file = "examples/03_dispatch.zig", .name = "example_3" },
-        .{ .file = "examples/04_action_context.zig", .name = "example_4" },
-        .{ .file = "examples/05_request_takeover.zig", .name = "example_5" },
-        .{ .file = "examples/06_middleware.zig", .name = "example_6" },
-        .{ .file = "examples/07_advanced_routing.zig", .name = "example_7" },
-        .{ .file = "examples/08_websocket.zig", .name = "example_8" },
-        .{ .file = "examples/09_shutdown.zig", .name = "example_9", .libc = true },
+        .{ .file = "examples_http/01_basic.zig", .name = "example_1" },
+        .{ .file = "examples_http/02_handler.zig", .name = "example_2" },
+        .{ .file = "examples_http/03_dispatch.zig", .name = "example_3" },
+        .{ .file = "examples_http/04_action_context.zig", .name = "example_4" },
+        .{ .file = "examples_http/05_request_takeover.zig", .name = "example_5" },
+        .{ .file = "examples_http/06_middleware.zig", .name = "example_6" },
+        .{ .file = "examples_http/07_advanced_routing.zig", .name = "example_7" },
+        .{ .file = "examples_http/08_websocket.zig", .name = "example_8" },
+        .{ .file = "examples_http/09_shutdown.zig", .name = "example_9", .libc = true },
     };
 
     {
@@ -87,16 +88,28 @@ pub fn build(b: *std.Build) !void {
             if (ex.libc) {
                 exe.linkLibC();
             }
-            b.installArtifact(exe);
+            //b.installArtifact(exe);
+            const install_artifact = b.addInstallBinFile(exe.getEmittedBin(), b.fmt("../../{s}", .{ ex.name }) ); // to project root
+            b.getInstallStep().dependOn(&install_artifact.step);
+            
+            const build_step = b.step(b.fmt("{s}", .{ ex.name }), b.fmt("Build httpz example ({s})", .{ ex.name }));
+            build_step.dependOn(&install_artifact.step);
+            
+            const run_artifact = b.addRunArtifact(exe);
+            run_artifact.step.dependOn(&install_artifact.step);
+            
+            const run_step = b.step(b.fmt("run_{s}", .{ ex.name }), b.fmt("Run httpz example ({s})", .{ ex.name }));
+            run_step.dependOn(&install_artifact.step);
+            run_step.dependOn(&run_artifact.step);
 
-            const run_cmd = b.addRunArtifact(exe);
-            run_cmd.step.dependOn(b.getInstallStep());
-            if (b.args) |args| {
-                run_cmd.addArgs(args);
-            }
+            //const run_cmd = b.addRunArtifact(exe);
+            //run_cmd.step.dependOn(b.getInstallStep());
+            //if (b.args) |args| {
+            //    run_cmd.addArgs(args);
+            //}
 
-            const run_step = b.step(ex.name, ex.file);
-            run_step.dependOn(&run_cmd.step);
+            //const run_step = b.step(ex.name, ex.file);
+            //run_step.dependOn(&run_cmd.step);
         }
     }
 }
