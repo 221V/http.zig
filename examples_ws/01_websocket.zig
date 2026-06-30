@@ -60,7 +60,7 @@ fn index(_: Handler, _: *httpz.Request, res: *httpz.Response) !void {
     \\<!DOCTYPE html>
     \\<html>
     \\<body>
-    \\<h1>Websocket example 1</h1>
+    \\<h1>Websocket example 1 - ws</h1>
     \\<h3>please check browser console</h3>
     \\<p>httpz integrates with my own <a href="https://github.com/karlseguin/websocket.zig/">websocket.zig</a>.
     \\<p>A websocket connection should already be established.</p>
