@@ -27,9 +27,9 @@ const Handler = struct {
     //user_id: u32,
     conn: *websocket.Conn,
 
-    const Context = struct {
-        user_id: u32,
-    };
+    //const Context = struct {
+    //    user_id: u32,
+    //};
 
     //pub fn init(conn: *websocket.Conn, ctx: *const Context) !WebsocketHandler { // context is any abitrary data that you want, you'll pass it to upgradeWebsocket
     pub fn init(conn: *websocket.Conn, _: void) !WebsocketHandler { // context is any abitrary data that you want, you'll pass it to upgradeWebsocket
