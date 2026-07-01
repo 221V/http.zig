@@ -124,6 +124,7 @@ const Handler = struct {
       
       } else {
         try self.conn.write("Error: use 'room:message' format");
+        std.log.info("Ignored non-protocol message: {s}", .{ data });
       }
     }
 
@@ -177,6 +178,7 @@ fn index(_: Handler, _: *httpz.Request, res: *httpz.Response) !void {
 
 pub fn main() !void {
   var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+  defer _ = gpa.deinit();
   const allocator = gpa.allocator();
   
   global_chat = ChatManager.init(allocator);

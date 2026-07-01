@@ -94,6 +94,7 @@ fn ws_upgrade(_: Handler, req: *httpz.Request, res: *httpz.Response) !void {
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     // For websocket support, you _must_ define a Handler, and
