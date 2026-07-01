@@ -505,6 +505,11 @@ function connect(){
             console.error("Server returned ERROR status");
             if(item.ui_update){ item.ui_update(item, "Error: Rejected by server"); }
             item.autostart = false;
+            
+            item.status = 'error'; // mark file as error and continue upload files queue
+            saveState();
+            ftp.active = false;
+            ftp.start();
           }
         }
       }catch(e){ console.error(e); }
