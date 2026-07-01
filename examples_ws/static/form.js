@@ -10,24 +10,47 @@ function ui_add(item){
 <progress id="ftp-pg-${item.uid}" value="0" max="${item.total}" style="width:100%"></progress>
 <button id="ftp-ps-${item.uid}" onclick="ftp.stop('${item.uid}')">Pause</button>
 <button id="ftp-rs-${item.uid}" onclick="ftp.resume('${item.uid}')">Resume</button>
+<button id="ftp-rm-${item.uid}" onclick="ui_remove('${item.uid}')">Remove</button>
 </div>`;
   document.getElementById(item.status_block_id).appendChild(el);
 }
 
-function ui_update(item, txt, is_done){
+function ui_remove(item_uid){
+  ftp.remove(item_uid);
+  var el = document.getElementById("ftp-" + item_uid);
+  if(el) el.remove();
+}
+
+function ui_update(item, txt, is_done, is_error){
   var pg = document.getElementById("ftp-pg-" + item.uid);
   var st = document.getElementById("ftp-st-" + item.uid);
+  var container = document.getElementById("ftp-" + item.uid).firstElementChild;
+  
   if(pg) pg.value = item.offset;
   if(st){
     var pct = Math.round((item.offset / item.total) * 100);
     st.innerHTML = txt || (pct + "% (" + item.offset + " / " + item.total + " bytes)");
   }
-  if(is_done){
+  
+  if(is_error) st.style.color = 'red';
+  
+  if(is_done || is_error){
     var ps = document.getElementById("ftp-ps-" + item.uid);
     if(ps) ps.remove();
     var rs = document.getElementById("ftp-rs-" + item.uid);
     if(rs) rs.remove();
   }
+  
+  //if(is_error){
+  //  if(!document.getElementById("ftp-rm-" + item.uid)){
+  //    var btn = document.createElement("button");
+  //    btn.id = "ftp-rm-" + item.uid;
+  //    btn.innerHTML = "Remove";
+  //    btn.style.marginLeft = "5px";
+  //    btn.onclick = ui_remove(item.uid);
+  //    container.appendChild(btn);
+  //  }
+  //}
 }
 
 

@@ -406,6 +406,17 @@ var ftp = {
   
   item: function(id){ return ftp.queue.find(i => i.id === id || i.uid === id); },
   
+  remove: function(id){
+    var index = ftp.queue.findIndex(i => i.id === id || i.uid === id);
+    if(index !== -1){
+      ftp.queue.splice(index, 1);
+      saveState();
+      //var el = document.getElementById("ftp-" + id);
+      //if(el) el.remove();
+      //console.log("File removed from queue:", id);
+    }
+  },
+  
   next: function(){ return ftp.queue.find(next => next && next.autostart && (next.status === 'init' || next.offset < next.total) ); }
   //next: function(){ return ftp.queue.find(next => next.offset < next.total); }
 };
@@ -503,7 +514,7 @@ function connect(){
           
           }else if(status === "error"){
             console.error("Server returned ERROR status");
-            if(item.ui_update){ item.ui_update(item, "Error: Rejected by server"); }
+            if(item.ui_update){ item.ui_update(item, "Error: Rejected by server", true, true); }
             item.autostart = false;
             
             item.status = 'error'; // mark file as error and continue upload files queue
