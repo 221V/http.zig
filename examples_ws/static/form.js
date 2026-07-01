@@ -39,6 +39,15 @@ function ui_update(item, txt, is_done, is_error){
     if(ps) ps.remove();
     var rs = document.getElementById("ftp-rs-" + item.uid);
     if(rs) rs.remove();
+    
+    var el = document.getElementById("ftp-" + item.uid);
+    if(el){
+      var timestamp = Date.now();
+      var new_id = 'ftp_' + timestamp;
+      el.id = new_id; // rewrite id - fix bug - upload same file twice
+      var rm_btn = document.getElementById('ftp-rm-' + item.uid);
+      if(rm_btn){ rm_btn.onclick = function(){ var el3 = document.getElementById(new_id); if(el3){ el3.remove(); } }; }
+    }
   }
   
   //if(is_error){
@@ -62,7 +71,7 @@ function selectFiles(input){
     var file = input.files[i];
     
     var existing = ftp.queue.find(item =>
-      item.status === 'missing_file' &&
+      item.status === 'missing_file' && // other option can be check here for == 'done', in case we do not delete 'done' from queue
       item.name === file.name &&
       item.total === file.size
     );

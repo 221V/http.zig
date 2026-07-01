@@ -285,7 +285,14 @@ const Handler = struct {
 
               if (state.current_size >= state.total_size) {
                 state.file.close();
-                std.fs.cwd().rename(state.path_temp, state.path_done) catch |e| {
+                
+                //const now = std.time.timestamp();
+                //const ext = std.fs.path.extension(state.path_done);
+                //const stem = state.path_done[0 .. state.path_done.len - ext.len];
+                //const final_path = try std.fmt.allocPrint(allocator, "{s}_{d}{s}", .{ stem, now, ext });
+                
+                std.fs.cwd().rename(state.path_temp, state.path_done) catch |e| { // todo check is file already exists before mv - do not rewrite same file with same name
+                //std.fs.cwd().rename(state.path_temp, final_path) catch |e| { // use this case - with timestamp - when you do not care about files doubles
                   std.log.err("Move failed: {s}", .{ @errorName(e) });
                 };
                 _ = self.removeUpload(id);

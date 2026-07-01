@@ -506,7 +506,7 @@ function connect(){
               saveState();
               
               if(item.ui_update){ item.ui_update(item, "Done!", true); } // console.log("File complete!");
-              //ftp.queue = ftp.queue.filter(i => i.id !== item.id);
+              ftp.queue = ftp.queue.filter(i => i.id !== item.id); // clear done from queue
               item.autostart = true;
               ftp.active = false;
               ftp.start(); // next file
