@@ -15,7 +15,6 @@ const PORT = 8808;
 
 
 const ExtensionsLimits = struct {
-  //ext: []const u8,
   exts: []const []const u8, // for set few filetypes with same max size
   size: usize,
 };
@@ -54,7 +53,6 @@ const UploadState = struct { // session state for uploads
   path_done: []const u8,
   total_size: usize,
   current_size: usize,
-  //last_update: i64,
 };
 
 
@@ -73,7 +71,6 @@ fn checkLimits(name: []const u8, size: usize) !void {
 
   if (config.deny_extensions) |list| { // check blacklist
     for (list) |denied| {
-      //if (std.mem.eql(u8, ext, denied)) return error.ExtensionDenied;
       if (std.ascii.eqlIgnoreCase(ext, denied)) return error.ExtensionDenied;
     }
   }
@@ -81,7 +78,6 @@ fn checkLimits(name: []const u8, size: usize) !void {
   if (config.allow_extensions) |list| { // check whitelist
     var found = false;
     for (list) |allowed| {
-      //if (std.mem.eql(u8, ext, allowed)) { found = true; break; }
       if (std.ascii.eqlIgnoreCase(ext, allowed)) { found = true; break; }
     }
     if (!found){
@@ -94,7 +90,6 @@ fn checkLimits(name: []const u8, size: usize) !void {
 
   outer: for (config.extension_limits) |group| { // lets check file size limit // label :outer for exit both loops
     for (group.exts) |group_ext| {
-      //if (std.mem.eql(u8, ext, group_ext)) {
       if (std.ascii.eqlIgnoreCase(ext, group_ext)) {
         limit = group.size;
         //std.log.info("CheckLimits: Matched group for '{s}', setting limit to {d}", .{group_ext, limit});
@@ -137,7 +132,6 @@ fn getSavePath(allocator: std.mem.Allocator, filename: []const u8, total_size: u
 }
 
 
-//fn getFileInfo(allocator: std.mem.Allocator, filename: []const u8, total_size: usize, is_temp: bool) !struct{ path: []const u8, id: []const u8 } {
 fn getFileInfo(allocator: std.mem.Allocator, filename: []const u8, total_size: usize) !struct{ path_temp: []const u8, path_done: []const u8, id: []const u8 } {
   var hasher = std.hash.Wyhash.init(0);
   hasher.update(filename);
@@ -147,10 +141,6 @@ fn getFileInfo(allocator: std.mem.Allocator, filename: []const u8, total_size: u
   const ext = std.fs.path.extension(filename);
   const id_str = try std.fmt.allocPrint(allocator, "{x}", .{hash}); // id = hex hash
 
-  //const root = if (is_temp) config.save_path_temp else config.save_path_root;
-  //const path = try std.fmt.allocPrint(allocator, "{s}/{s}{s}", .{root, id_str, ext});
-
-  //return .{ .path = path, .id = id_str };
   return .{
     .id = id_str,
     .path_temp = try std.fmt.allocPrint(allocator, "{s}/{s}{s}", .{ config.save_path_temp, id_str, ext }),
@@ -218,106 +208,94 @@ const Handler = struct {
 
       if (val != .tuple or val.tuple.len != 13) return; // BERT {ftp, ID, Name, Total, Offset, Data, Status}  // not file data // n2o ftp protocol has 13 elements
 
-      //switch (val) { 
-      //  .tuple => |elems| {
-      //    if(elems.len != 13){ return; } // not file data // n2o ftp protocol has 13 elements
+      switch (val.tuple[0]) {
+        .atom => |s| if (!std.mem.eql(u8, s, "ftp")) return, // check 'ftp' atom
+        else => return,
+      }
 
-          //const atom_tag = val.tuple[0]; // elems[0];
-          //switch (atom_tag) {
-          switch (val.tuple[0]) {
-            .atom => |s| if (!std.mem.eql(u8, s, "ftp")) return, // check 'ftp' atom
-            else => return,
+      const id = try get_binary_str(val.tuple[1]); // (elems[1]);
+      const name = try get_binary_str(val.tuple[3]); // (elems[3]);
+      const total = try get_int_usize(val.tuple[8]); // (elems[8]);
+      const offset = try get_int_usize(val.tuple[9]); // (elems[9]);
+      const bin_data = try get_binary_str(val.tuple[11]); // (elems[11]);
+      const status = try get_binary_str(val.tuple[12]); // (elems[12]);
+
+      var reply_status: []const u8 = "send";
+      var current_offset: u64 = offset;
+      var response_id: []const u8 = id;
+
+      if (std.mem.eql(u8, status, "init")) { // start upload
+        checkLimits(name, total) catch |err| {
+          std.log.err("Limits check failed for {s}: {s}", .{ name, @errorName(err) });
+          try self.sendReply(id, total, 0, "error", allocator);
+          return;
+        };
+
+        std.fs.cwd().makePath(config.save_path_root) catch {};
+        std.fs.cwd().makePath(config.save_path_temp) catch {};
+
+        std.log.info("Init upload: {s} ({d} bytes)", .{name, total});
+
+        const info = try getFileInfo(allocator, name, total);
+
+        std.log.info("response_id (id): {s}, info.id = {s}", .{ response_id, info.id });
+        response_id = info.id;
+
+        if (std.fs.cwd().access(info.path_done, .{})) |_| { // file already exists
+          current_offset = total;
+        } else |_| { // file not found
+
+          //const file = std.fs.cwd().createFile(name, .{ .truncate = false, .read = true }) catch |e| {
+          const file = std.fs.cwd().createFile(info.path_temp, .{ .truncate = false, .read = true }) catch |e| {
+            std.log.err("Create File error: {s}", .{ @errorName(e) });
+            try self.sendReply(id, total, 0, "error", allocator);
+            return;
+          };
+          const stat = try file.stat();
+          current_offset = @intCast(stat.size);
+          try file.seekTo(current_offset);
+
+          try self.uploads.put(try self.allocator.dupe(u8, info.id), .{
+            .file = file,
+            .path_temp = try self.allocator.dupe(u8, info.path_temp),
+            .path_done = try self.allocator.dupe(u8, info.path_done),
+            .total_size = total,
+            .current_size = current_offset,
+          });
+        }
+
+
+      } else if (std.mem.eql(u8, status, "send")) { // chunk received
+        if (self.uploads.getPtr(id)) |state| { // here id must be server id because client has update it after init
+          if (offset == state.current_size) {
+            try state.file.writeAll(bin_data);
+            state.current_size += bin_data.len; // @as(u64, @intCast(bin_data.len));
           }
+          current_offset = state.current_size;
 
-          const id = try get_binary_str(val.tuple[1]); // (elems[1]);
-          const name = try get_binary_str(val.tuple[3]); // (elems[3]);
-          const total = try get_int_usize(val.tuple[8]); // (elems[8]);
-          const offset = try get_int_usize(val.tuple[9]); // (elems[9]);
-          const bin_data = try get_binary_str(val.tuple[11]); // (elems[11]);
-          const status = try get_binary_str(val.tuple[12]); // (elems[12]);
+          if (state.current_size >= state.total_size) {
+            state.file.close();
 
-          var reply_status: []const u8 = "send";
-          var current_offset: u64 = offset;
-          var response_id: []const u8 = id;
+            //const now = std.time.timestamp();
+            //const ext = std.fs.path.extension(state.path_done);
+            //const stem = state.path_done[0 .. state.path_done.len - ext.len];
+            //const final_path = try std.fmt.allocPrint(allocator, "{s}_{d}{s}", .{ stem, now, ext });
 
-          if (std.mem.eql(u8, status, "init")) { // start upload
-            checkLimits(name, total) catch |err| {
-              std.log.err("Limits check failed for {s}: {s}", .{ name, @errorName(err) });
-              try self.sendReply(id, total, 0, "error", allocator);
-              return;
+            std.fs.cwd().rename(state.path_temp, state.path_done) catch |e| { // todo check is file already exists before mv - do not rewrite same file with same name
+            //std.fs.cwd().rename(state.path_temp, final_path) catch |e| { // use this case - with timestamp - when you do not care about files doubles
+              std.log.err("Move failed: {s}", .{ @errorName(e) });
             };
-
-            std.fs.cwd().makePath(config.save_path_root) catch {};
-            std.fs.cwd().makePath(config.save_path_temp) catch {};
-
-            std.log.info("Init upload: {s} ({d} bytes)", .{name, total});
-
-            const info = try getFileInfo(allocator, name, total);
-            //defer allocator.free(info.id); // this makes error
-            //defer allocator.free(info.path_temp);
-            //defer allocator.free(info.path_done);
-
-            std.log.info("response_id (id): {s}, info.id = {s}", .{ response_id, info.id });
-            response_id = info.id;
-
-            if (std.fs.cwd().access(info.path_done, .{})) |_| { // file already exists
-              current_offset = total;
-            } else |_| { // file not found
-
-              //const file = std.fs.cwd().createFile(name, .{ .truncate = false, .read = true }) catch |e| {
-              const file = std.fs.cwd().createFile(info.path_temp, .{ .truncate = false, .read = true }) catch |e| {
-                std.log.err("Create File error: {s}", .{ @errorName(e) });
-                try self.sendReply(id, total, 0, "error", allocator);
-                return;
-              };
-              const stat = try file.stat();
-              current_offset = @intCast(stat.size);
-              try file.seekTo(current_offset);
-
-              try self.uploads.put(try self.allocator.dupe(u8, info.id), .{
-                .file = file,
-                .path_temp = try self.allocator.dupe(u8, info.path_temp),
-                .path_done = try self.allocator.dupe(u8, info.path_done),
-                .total_size = total,
-                .current_size = current_offset,
-              });
-            }
-
-
-          } else if (std.mem.eql(u8, status, "send")) { // chunk received
-            //if (self.uploads.get(id)) |file| { // here id must be server id because client has update it after init
-            if (self.uploads.getPtr(id)) |state| { // here id must be server id because client has update it after init
-              if (offset == state.current_size) {
-                try state.file.writeAll(bin_data);
-                state.current_size += bin_data.len; // @as(u64, @intCast(bin_data.len));
-              }
-              current_offset = state.current_size;
-
-              if (state.current_size >= state.total_size) {
-                state.file.close();
-                
-                //const now = std.time.timestamp();
-                //const ext = std.fs.path.extension(state.path_done);
-                //const stem = state.path_done[0 .. state.path_done.len - ext.len];
-                //const final_path = try std.fmt.allocPrint(allocator, "{s}_{d}{s}", .{ stem, now, ext });
-                
-                std.fs.cwd().rename(state.path_temp, state.path_done) catch |e| { // todo check is file already exists before mv - do not rewrite same file with same name
-                //std.fs.cwd().rename(state.path_temp, final_path) catch |e| { // use this case - with timestamp - when you do not care about files doubles
-                  std.log.err("Move failed: {s}", .{ @errorName(e) });
-                };
-                _ = self.removeUpload(id);
-              }
-
-            }else{
-              reply_status = "error";
-            }
+            _ = self.removeUpload(id);
           }
 
-          try self.sendReply(response_id, total, current_offset, reply_status, allocator);
-        //}, // end .tuple
-        //else => {},
-      //}
+        }else{
+          reply_status = "error";
+        }
+      }
+
+      try self.sendReply(response_id, total, current_offset, reply_status, allocator);
     }
+
 
     fn sendReply(self: *WebsocketHandler, id: []const u8, total: usize, offset: usize, status: []const u8, allocator: std.mem.Allocator) !void {
       var arena = std.heap.ArenaAllocator.init(allocator);
@@ -346,6 +324,7 @@ const Handler = struct {
       try self.conn.writeBin(encoded);
     }
 
+
     fn removeUpload(self: *WebsocketHandler, id: []const u8) bool {
       if (self.uploads.fetchRemove(id)) |kv| {
         self.allocator.free(kv.key);
@@ -355,6 +334,7 @@ const Handler = struct {
       }
       return false;
     }
+
 
     pub fn clientClose(self: *WebsocketHandler, _: []const u8) !void {
       var it = self.uploads.iterator();
@@ -386,7 +366,6 @@ fn get_int_usize(v: Bert_Value) !usize {
 }
 
 
-//fn ws_upgrade(_: Handler, req: *httpz.Request, res: *httpz.Response) !void {
 fn ws_upgrade(handler: Handler, req: *httpz.Request, res: *httpz.Response) !void {
   //const ctx = WS_Handler.Context{ .user_id = 9001 };
   

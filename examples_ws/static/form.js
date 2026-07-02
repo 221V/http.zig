@@ -24,7 +24,6 @@ function ui_remove(item_uid){
 function ui_update(item, txt, is_done, is_error){
   var pg = document.getElementById("ftp-pg-" + item.uid);
   var st = document.getElementById("ftp-st-" + item.uid);
-  //var container = document.getElementById("ftp-" + item.uid).firstElementChild;
   
   if(pg) pg.value = item.offset;
   if(st){
@@ -49,17 +48,6 @@ function ui_update(item, txt, is_done, is_error){
       if(rm_btn){ rm_btn.onclick = function(){ var el3 = document.getElementById(new_id); if(el3){ el3.remove(); } }; }
     }
   }
-  
-  //if(is_error){
-  //  if(!document.getElementById("ftp-rm-" + item.uid)){
-  //    var btn = document.createElement("button");
-  //    btn.id = "ftp-rm-" + item.uid;
-  //    btn.innerHTML = "Remove";
-  //    btn.style.marginLeft = "5px";
-  //    btn.onclick = ui_remove(item.uid);
-  //    container.appendChild(btn);
-  //  }
-  //}
 }
 
 
