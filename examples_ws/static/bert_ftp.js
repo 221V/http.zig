@@ -468,6 +468,7 @@ function connect(){
         if(msg.t === 104 && msg.v[0].t === 118 && msg.v[0].v === "ftp"){ // check if tuple {ftp, ...}
           var v = msg.v; // [atom, id, sid, name, meta, o1, o2, o3, total, offset, block, data, status]
           var server_id = utf8_arr(v[1].v); // server returns file_id
+          //console.log('got responce = server_id = ', server_id);
           var offset = v[9].v;
           var status = utf8_arr(v[12].v);
           

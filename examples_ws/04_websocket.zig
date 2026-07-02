@@ -206,7 +206,11 @@ const Handler = struct {
     }
 
     pub fn clientMessage(self: *WebsocketHandler, allocator: std.mem.Allocator, data: []const u8) !void {
-      var b = Bert.init(allocator);
+      var arena = std.heap.ArenaAllocator.init(allocator);
+      defer arena.deinit();
+      const arena_alloc = arena.allocator();
+      
+      var b = Bert.init(arena_alloc);
       const val = b.decode(data) catch |e| { // for file data Bert_Value must be Tuple{ftp, id, ..., data, status}
         std.log.err("BERT Decode Error: {s}", .{ @errorName(e) });
         return;
@@ -249,11 +253,17 @@ const Handler = struct {
             std.log.info("Init upload: {s} ({d} bytes)", .{name, total});
 
             const info = try getFileInfo(allocator, name, total);
+            //defer allocator.free(info.id); // this makes error
+            //defer allocator.free(info.path_temp);
+            //defer allocator.free(info.path_done);
+
+            std.log.info("response_id (id): {s}, info.id = {s}", .{ response_id, info.id });
             response_id = info.id;
 
             if (std.fs.cwd().access(info.path_done, .{})) |_| { // file already exists
               current_offset = total;
             } else |_| { // file not found
+
               //const file = std.fs.cwd().createFile(name, .{ .truncate = false, .read = true }) catch |e| {
               const file = std.fs.cwd().createFile(info.path_temp, .{ .truncate = false, .read = true }) catch |e| {
                 std.log.err("Create File error: {s}", .{ @errorName(e) });
@@ -310,7 +320,11 @@ const Handler = struct {
     }
 
     fn sendReply(self: *WebsocketHandler, id: []const u8, total: usize, offset: usize, status: []const u8, allocator: std.mem.Allocator) !void {
-      var b = Bert.init(allocator);
+      var arena = std.heap.ArenaAllocator.init(allocator);
+      defer arena.deinit();
+      const arena_alloc = arena.allocator();
+
+      var b = Bert.init(arena_alloc);
       var reply_tuple = [_]Bert_Value{ // encode Reply
         try b.atom("ftp"),
         try b.binary(id),
@@ -327,7 +341,7 @@ const Handler = struct {
         try b.binary(status),
       };
 
-      std.log.info("WS: Sending Reply status='{s}' offset={d}", .{status, offset});
+      std.log.info("WS: Sending Reply status='{s}' offset={d}", .{ status, offset });
       const encoded = try b.encode(try b.tuple(&reply_tuple));
       try self.conn.writeBin(encoded);
     }
@@ -439,6 +453,9 @@ fn serveStatic(_: Handler, req: *httpz.Request, res: *httpz.Response) !void {
 
 pub fn main() !void {
   var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+  //var gpa = std.heap.GeneralPurposeAllocator(.{
+  //  .stack_trace_frames = 8, // for debug
+  //}){};
   defer _ = gpa.deinit();
   const allocator = gpa.allocator();
   
@@ -451,6 +468,19 @@ pub fn main() !void {
   defer server.deinit();
   defer server.stop();
   
+  //const killer_thread = try std.Thread.spawn(.{}, struct { // for debug
+  //  //fn run(s: *httpz.Server(Handler)) void {
+  //  fn run(s_ptr: usize) void {
+  //    const s: *httpz.Server(Handler) = @ptrFromInt(s_ptr);
+      
+  //    std.time.sleep(300 * std.time.ns_per_s);
+  //    std.log.info("Killer: Stopping server for leak check...", .{});
+  //    s.stop(); // deblocking server.listen() below
+  //  }
+  ////}.run, .{&server});
+  //}.run, .{ @intFromPtr(&server) });
+  ////defer killer_thread.join();
+  
   var router = try server.router(.{});
   router.get("/", index, .{});
   router.get("/ws", ws_upgrade, .{});
@@ -458,5 +488,17 @@ pub fn main() !void {
   
   print("listening http://localhost:{d}/\n", .{ PORT });
   try server.listen(); // this is blocking
+  //killer_thread.join();
+  
+  //defer { // for debug
+  //  const status = gpa.deinit();
+  //  if (status == .leak) {
+  //    std.log.err("GPA: MEMORY LEAK DETECTED!", .{});
+  //  } else {
+  //    std.log.info("GPA: No leaks found.", .{});
+  //  }
+  //}
+  
+  //std.log.info("Server loop finished, ready for leaks info...", .{}); // debug
 }
 

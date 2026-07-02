@@ -24,7 +24,7 @@ function ui_remove(item_uid){
 function ui_update(item, txt, is_done, is_error){
   var pg = document.getElementById("ftp-pg-" + item.uid);
   var st = document.getElementById("ftp-st-" + item.uid);
-  var container = document.getElementById("ftp-" + item.uid).firstElementChild;
+  //var container = document.getElementById("ftp-" + item.uid).firstElementChild;
   
   if(pg) pg.value = item.offset;
   if(st){
