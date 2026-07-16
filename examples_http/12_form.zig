@@ -21,7 +21,7 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
 \\<html>
 \\<head>
 \\<meta charset="UTF-8">
-\\<title>zzz form example</title>
+\\<title>httpz form example</title>
 \\</head>
 \\<body>
 \\<form>

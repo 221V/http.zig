@@ -13,7 +13,7 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
 \\<html>
 \\<head>
 \\<meta charset="UTF-8">
-\\<title>zzz sse example</title>
+\\<title>httpz sse example</title>
 \\</head>
 \\<body>
 \\<h1>SSE example</h1>
