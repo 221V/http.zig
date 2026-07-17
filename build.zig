@@ -76,6 +76,7 @@ pub fn build(b: *std.Build) !void {
         .{ .file = "examples_http/14_sse.zig", .name = "example_14" },
         .{ .file = "examples_http/15_fs.zig", .name = "example_15" },
         .{ .file = "examples_http/16_basic_auth.zig", .name = "example_16" },
+        .{ .file = "examples_http/17_rest.zig", .name = "example_17" },
         
         .{ .file = "examples_ws/01_websocket.zig", .name = "example_ws_1" },
         //.{ .file = "examples_ws/02_websocket.zig", .name = "example_ws_2", .libc = true, .bearssl = true }, // todo example with ssl-tls with bearssl, without nginx before zig_server
