@@ -77,6 +77,7 @@ pub fn build(b: *std.Build) !void {
         .{ .file = "examples_http/15_fs.zig", .name = "example_15" },
         .{ .file = "examples_http/16_basic_auth.zig", .name = "example_16" },
         .{ .file = "examples_http/17_rest.zig", .name = "example_17" },
+        .{ .file = "examples_http/18_unix.zig", .name = "example_18" },
         
         .{ .file = "examples_ws/01_websocket.zig", .name = "example_ws_1" },
         //.{ .file = "examples_ws/02_websocket.zig", .name = "example_ws_2", .libc = true, .bearssl = true }, // todo example with ssl-tls with bearssl, without nginx before zig_server
@@ -96,6 +97,7 @@ pub fn build(b: *std.Build) !void {
             });
             exe.root_module.addImport("httpz", httpz_module);
             exe.root_module.addImport("metrics", metrics_module);
+            if(std.mem.eql(u8, ex.name, "example_18") and target.result.os.tag == .windows){ continue; } // "examples_http/18_unix.zig"
             //if (ex.bearssl) {
             //  exe.root_module.addImport("bearssl", bearssl_module);
             //  exe.linkLibrary(bearssl);
